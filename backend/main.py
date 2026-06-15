@@ -24,9 +24,9 @@ app.add_middleware(
 )
 
 # 3. Register routers
-app.include_router(patients.router,    prefix="/patients",    tags=["Patients"])
-app.include_router(diseases.router,    prefix="/diseases",    tags=["Diseases"])
-app.include_router(surveillance.router,prefix="/surveillance",tags=["Surveillance"])
+app.include_router(patients.router)
+app.include_router(diseases.router)
+app.include_router(surveillance.router)
 
 # 4. Root health check — open http://127.0.0.1:8000 to confirm
 @app.get("/")
@@ -36,4 +36,4 @@ def read_root():
 # 5. Run directly with: python main.py
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

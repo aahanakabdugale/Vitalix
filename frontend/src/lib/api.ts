@@ -1,7 +1,7 @@
 // All API calls to FastAPI backend live here
 // Change BASE_URL when you deploy to production
 
-const BASE_URL = "http://127.0.0.1:8000"
+const BASE_URL = "http://localhost:8000"
 
 // Fetch all patients from FastAPI
 export async function getPatients() {
