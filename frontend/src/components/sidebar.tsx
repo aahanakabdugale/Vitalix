@@ -1,6 +1,6 @@
 "use client"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {LayoutDashboard,Users,Activity,FileText,Settings,Heart,Menu,X,LogOut,} from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
@@ -16,15 +16,14 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
+  
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const handleLogout = async () => {
-    await signOut()
-    router.push('/login')
-    router.refresh()
-  }
-
+  await signOut()
+  // signOut() in auth.ts already handles the redirect to /landing
+  // so nothing else needed here
+}
   return (
     <>
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shadow-sm">

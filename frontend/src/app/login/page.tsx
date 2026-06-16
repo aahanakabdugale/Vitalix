@@ -42,7 +42,7 @@ export default function LoginPage() {
     if (profile?.role === 'health_authority') {
       router.push('/surveillance')
     } else {
-      router.push('/')
+      router.push('/dashboard')
     }
   }
 

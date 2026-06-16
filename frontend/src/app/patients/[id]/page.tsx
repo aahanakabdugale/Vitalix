@@ -4,11 +4,8 @@
 
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import {
-  ArrowLeft, Phone, Mail, MapPin, Heart,
-  Activity, Thermometer, Droplets, Calendar, User
-} from "lucide-react"
-
+import { ArrowLeft } from "lucide-react"
+import { HealthCard } from "@/components/health-card"
 // ── Dummy patient data (same as patients/page.tsx) ────────────────
 const dummyPatients = [
   {
@@ -182,139 +179,90 @@ const statusColor: Record<string, string> = {
 
 // ─────────────────────────────────────────────────────────────────
 
+
 export default function PatientDetailPage() {
-  // Get the [id] from the URL automatically
   const params = useParams()
   const id = params.id as string
 
-  // Find patient by UUID
   const patient = dummyPatients.find((p) => p.id === id)
 
-  // If patient not found show friendly message
+  // 1. Handle "Not Found" case
   if (!patient) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <Link href="/patients" className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6">
-          <ArrowLeft className="w-4 h-4" /> Back to Patients
-        </Link>
-        <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
-          <p className="text-gray-400 text-sm">Patient not found.</p>
-        </div>
+      <div className="p-6 max-w-4xl mx-auto text-center">
+        <p className="text-gray-500">Patient not found.</p>
+        <Link href="/patients" className="text-blue-600">Back to Patients</Link>
       </div>
     )
   }
 
+  // 2. Main Return statement - everything else goes here
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-
-      {/* ── Back button + header ── */}
-      <div>
-        <Link href="/patients" className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4 w-fit">
-          <ArrowLeft className="w-4 h-4" /> Back to Patients
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <Link href="/patients" className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
+          <ArrowLeft className="w-4 h-4" /> Back
         </Link>
-
-        {/* Patient name + status */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-4">
-            {/* Big avatar */}
-            <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-xl font-bold">
-                {patient.name.split(" ").map(n => n[0]).join("")}
-              </span>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{patient.name}</h1>
-              <p className="text-sm text-gray-500">
-                {patient.age} years · {patient.gender} · Blood Group: <span className="font-semibold text-red-600">{patient.bloodGroup}</span>
-              </p>
-            </div>
-          </div>
-          <span className={`text-sm font-semibold px-3 py-1 rounded-full w-fit ${statusColor[patient.status]}`}>
-            {patient.status}
-          </span>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">{patient.name}</h1>
+        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusColor[patient.status]}`}>
+          {patient.status}
+        </span>
       </div>
 
-      {/* ── Info cards row ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-        {/* Personal info */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3">
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">Personal Information</h2>
-          {[
-            { icon: <Phone className="w-4 h-4" />,    label: "Phone",    value: patient.phone },
-            { icon: <Mail className="w-4 h-4" />,     label: "Email",    value: patient.email },
-            { icon: <MapPin className="w-4 h-4" />,   label: "Address",  value: patient.address },
-            { icon: <User className="w-4 h-4" />,     label: "Doctor",   value: patient.doctor },
-            { icon: <Calendar className="w-4 h-4" />, label: "Last Visit", value: patient.lastVisit },
-          ].map((row) => (
-            <div key={row.label} className="flex items-start gap-3">
-              <span className="text-blue-500 mt-0.5 flex-shrink-0">{row.icon}</span>
-              <div>
-                <p className="text-xs text-gray-400">{row.label}</p>
-                <p className="text-sm text-gray-800 font-medium">{row.value}</p>
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Column: Profile & QR */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+            <h2 className="text-sm font-semibold mb-4">Basic Profile</h2>
+            <div className="space-y-3 text-sm">
+              <p><span className="text-gray-400">Age:</span> {patient.age}</p>
+              <p><span className="text-gray-400">Gender:</span> {patient.gender}</p>
+              <p><span className="text-gray-400">Blood Group:</span> <span className="font-bold">{patient.bloodGroup}</span></p>
+              <p><span className="text-gray-400">Contact:</span> {patient.phone}</p>
             </div>
-          ))}
+          </div>
+          
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center">
+             <h2 className="text-sm font-semibold mb-3">Scan for Records</h2>
+             <HealthCard 
+                patientId={patient.id} 
+                name={patient.name} 
+                bloodGroup={patient.bloodGroup} 
+                condition={patient.condition} 
+             />
+          </div>
         </div>
 
-        {/* Vitals */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-3">Current Vitals</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: <Activity className="w-4 h-4" />,    label: "Blood Pressure", value: patient.vitals.bp,      color: "bg-red-50 text-red-600" },
-              { icon: <Heart className="w-4 h-4" />,       label: "Pulse",          value: patient.vitals.pulse,   color: "bg-pink-50 text-pink-600" },
-              { icon: <Thermometer className="w-4 h-4" />, label: "Temperature",    value: patient.vitals.temp,    color: "bg-amber-50 text-amber-600" },
-              { icon: <Droplets className="w-4 h-4" />,    label: "Blood Glucose",  value: patient.vitals.glucose, color: "bg-blue-50 text-blue-600" },
-            ].map((v) => (
-              <div key={v.label} className={`rounded-lg p-3 ${v.color.split(" ")[0]}`}>
-                <span className={v.color.split(" ")[1]}>{v.icon}</span>
-                <p className={`text-base font-bold mt-1 ${v.color.split(" ")[1]}`}>{v.value}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{v.label}</p>
+        {/* Right Column: Detailed Medical Analysis */}
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <h2 className="text-lg font-semibold mb-6">Detailed Medical Record</h2>
+          
+          <div className="grid grid-cols-2 gap-6 mb-8">
+            <div className="p-4 bg-gray-50 rounded-lg border">
+              <p className="text-xs text-gray-500 uppercase">Current Vitals</p>
+              <p className="text-sm mt-1">{patient.vitals.bp} (BP) | {patient.vitals.glucose} (Glucose)</p>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-lg border">
+              <p className="text-xs text-gray-500 uppercase">Primary Diagnosis</p>
+              <p className="text-sm mt-1 font-bold">{patient.condition}</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {patient.history.map((h, i) => (
+              <div key={i} className="flex gap-4">
+                <div className="w-px bg-gray-200 ml-1.5" />
+                <div>
+                   <p className="text-sm font-medium">{h.date} - {h.type}</p>
+                   <p className="text-sm text-gray-600 mt-1">{h.note}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </div>
-
-      {/* ── Diagnosis ── */}
-      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Primary Diagnosis</p>
-        <p className="text-lg font-bold text-blue-900 mt-1">{patient.condition}</p>
-        <p className="text-sm text-blue-600 mt-0.5">Attending: {patient.doctor}</p>
-      </div>
-
-      {/* ── Medical History ── */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-900">Medical History</h2>
-          <p className="text-xs text-gray-400 mt-0.5">{patient.history.length} records found</p>
-        </div>
-        <div className="divide-y divide-gray-50">
-          {patient.history.map((h, index) => (
-            <div key={index} className="px-5 py-4 flex gap-4">
-              {/* Timeline dot */}
-              <div className="flex flex-col items-center">
-                <div className="w-2.5 h-2.5 rounded-full bg-blue-600 mt-1.5 flex-shrink-0" />
-                {index < patient.history.length - 1 && (
-                  <div className="w-0.5 h-full bg-gray-100 mt-1" />
-                )}
-              </div>
-              <div className="flex-1 pb-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${historyTypeColor[h.type] ?? "bg-gray-100 text-gray-600"}`}>
-                    {h.type}
-                  </span>
-                  <span className="text-xs text-gray-400">{h.date}</span>
-                </div>
-                <p className="text-sm text-gray-700 mt-1.5 leading-relaxed">{h.note}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
     </div>
   )
 }

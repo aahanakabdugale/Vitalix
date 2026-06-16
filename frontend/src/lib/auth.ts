@@ -1,5 +1,4 @@
 // auth.ts — reusable auth helper functions
-// Import these wherever you need user/role info
 
 import { supabase } from './supabase'
 
@@ -9,7 +8,7 @@ export async function getCurrentUser() {
   return user
 }
 
-// Returns the role string: 'doctor' | 'hospital_admin' | 'health_authority'
+// Returns the role: 'doctor' | 'hospital_admin' | 'health_authority'
 export async function getCurrentRole(): Promise<string | null> {
   const user = await getCurrentUser()
   if (!user) return null
@@ -23,7 +22,11 @@ export async function getCurrentRole(): Promise<string | null> {
   return data?.role ?? null
 }
 
-// Signs out and sends user to login page
+// Signs out — redirects to /landing (not /login)
 export async function signOut() {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut()
+  // Small delay so Supabase clears the cookie before redirect
+  setTimeout(() => {
+    window.location.href = '/landing'
+  }, 100)
 }

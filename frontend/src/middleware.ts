@@ -1,6 +1,3 @@
-// middleware.ts — runs on every page request
-// Redirects to /login if user is not authenticated
-
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -16,6 +13,7 @@ export async function middleware(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value)
+            response = NextResponse.next({ request }) // Re-create response with updated cookies
             response.cookies.set(name, value, options)
           })
         },
@@ -24,23 +22,30 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+  const path = request.nextUrl.pathname
 
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
-                     request.nextUrl.pathname.startsWith('/signup')
+  // ── Define Routes ──────────────────────────────────
+  const isPublicPage = path === '/landing' || 
+                       path === '/login' || 
+                       path === '/signup' || 
+                       path.startsWith('/health-card/')
 
-  // Not logged in → go to login
-  if (!user && !isAuthPage) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // ── Logic ──────────────────────────────────────────
+  if (!user && !isPublicPage) {
+    // Not logged in and trying to access a private page -> Redirect to landing
+    return NextResponse.redirect(new URL('/landing', request.url))
   }
 
-  // Already logged in → don't show login/signup again
-  if (user && isAuthPage) {
-    return NextResponse.redirect(new URL('/', request.url))
+  if (user && (path === '/landing' || path === '/login' || path === '/signup')) {
+    // Logged in and trying to access auth pages -> Redirect to Dashboard
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return response
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
