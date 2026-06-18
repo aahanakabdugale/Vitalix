@@ -4,7 +4,8 @@
 import { useState } from "react"
 import { Search, Plus, Filter, ChevronRight } from "lucide-react"
 import Link from "next/link"
-
+import { AddPatientModal } from "@/components/add-patient-modal"
+import { getPatients } from "@/lib/api"
 // ── Dummy patient data ────────────────────────────────────────────
 const dummyPatients = [
   { id: "a1b2c3d4-0001-4000-8000-000000000001", name: "Arjun Mehta",      age: 45, gender: "Male",   condition: "Diabetes Type 2", status: "Active",     doctor: "Dr. Sharma",   lastVisit: "2025-06-10" },
@@ -27,11 +28,23 @@ const statusColor: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────
 
 export default function PatientsPage() {
-  const [search, setSearch] = useState("")
-  const [filterStatus, setFilterStatus] = useState("All")
+  const [search, setSearch]       = useState("")
+const [filterStatus, setFilterStatus] = useState("All")
+const [modalOpen, setModalOpen] = useState(false)
+const [patients, setPatients]   = useState(dummyPatients)
 
+// Reload patient list when new patient is added
+const handlePatientAdded = async () => {
+  try {
+    const updatedPatients = await getPatients()
+    setPatients(updatedPatients)
+  } catch (err) {
+    // If API fails, just keep the existing list
+    console.error("Failed to refresh patients:", err)
+  }
+}
   // Filter patients based on search text and status dropdown
-  const filtered = dummyPatients.filter((p) => {
+  const filtered = patients.filter((p) => {
     const matchSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.condition.toLowerCase().includes(search.toLowerCase())
@@ -46,10 +59,10 @@ export default function PatientsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Patients</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{dummyPatients.length} total patients registered</p>
+          <p className="text-sm text-gray-500 mt-0.5">{patients.length} total patients registered</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors w-fit">
-          <Plus className="w-4 h-4" />
+        <button onClick={() => setModalOpen(true)}className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors w-fit">
+        <Plus className="w-4 h-4" />
           Add Patient
         </button>
       </div>
@@ -87,9 +100,9 @@ export default function PatientsPage() {
       {/* ── Stats row ── */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Active",     count: dummyPatients.filter(p => p.status === "Active").length,     color: "text-green-600 bg-green-50 border-green-100" },
-          { label: "Critical",   count: dummyPatients.filter(p => p.status === "Critical").length,   color: "text-red-600 bg-red-50 border-red-100" },
-          { label: "Discharged", count: dummyPatients.filter(p => p.status === "Discharged").length, color: "text-gray-600 bg-gray-50 border-gray-100" },
+          { label: "Active",     count: patients.filter(p => p.status === "Active").length,     color: "text-green-600 bg-green-50 border-green-100" },
+          { label: "Critical",   count: patients.filter(p => p.status === "Critical").length,   color: "text-red-600 bg-red-50 border-red-100" },
+          { label: "Discharged", count: patients.filter(p => p.status === "Discharged").length, color: "text-gray-600 bg-gray-50 border-gray-100" },
         ].map((s) => (
           <div key={s.label} className={`rounded-xl border px-4 py-3 text-center ${s.color}`}>
             <p className="text-2xl font-bold">{s.count}</p>
@@ -201,6 +214,12 @@ export default function PatientsPage() {
           ))
         )}
       </div>
+         {/* Add Patient Modal */}
+<AddPatientModal 
+  isOpen={modalOpen} 
+  onClose={() => setModalOpen(false)}
+  onPatientAdded={handlePatientAdded}
+/> 
 
     </div>
   )
