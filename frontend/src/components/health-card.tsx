@@ -15,7 +15,7 @@ export const HealthCard = ({ patientId, name, bloodGroup, condition }: HealthCar
 
   useEffect(() => {
     // This only runs on the client, where 'window' exists
-    setOrigin('window.location.origin');
+    setOrigin(window.location.origin);
   }, []);
 
   // Use the state for the URL

@@ -1,58 +1,17 @@
 // health-card/[id]/page.tsx — PUBLIC patient-facing health card
-// This is what opens when someone scans the QR code from the doctor's page.
-// No login required — accessible to anyone with the link (UUID acts as the secret key).
+// UPDATED: Medical History now fetches real rows from medical_records,
+// so whatever a doctor saves via "Update Record" shows up here immediately
+// the next time this QR code is scanned.
 "use client"
 
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
-import { getPatient } from "@/lib/api"
+import { getPatientById, type Patient } from "@/lib/patients"
+import { getMedicalRecords, type MedicalRecord } from "@/lib/medical-records"
 import {
   Heart, Activity, Thermometer, Droplets, Calendar,
-  User, Loader2, ShieldCheck, Printer
+  User, Loader2, ShieldCheck, Printer, Pill, ClipboardList
 } from "lucide-react"
-
-// ── Same demo patients as doctor's view, but with full clinical data ──
-const dummyPatients = [
-  {
-    id: "a1b2c3d4-0001-4000-8000-000000000001",
-    name: "Arjun Mehta", age: 45, gender: "Male", blood_group: "B+",
-    condition: "Diabetes Type 2", status: "Active", doctor: "Dr. Sharma", last_visit: "2025-06-10",
-    history: [
-      { date: "2025-06-10", note: "Blood sugar levels elevated. Adjusted insulin dosage.", type: "Consultation" },
-      { date: "2025-05-15", note: "Routine checkup. HbA1c at 7.8%. Diet counseling given.", type: "Checkup" },
-    ],
-    vitals: { bp: "138/88", pulse: "82 bpm", temp: "98.4°F", glucose: "210 mg/dL" },
-  },
-  {
-    id: "a1b2c3d4-0002-4000-8000-000000000002",
-    name: "Priya Sharma", age: 32, gender: "Female", blood_group: "A+",
-    condition: "Hypertension", status: "Active", doctor: "Dr. Kulkarni", last_visit: "2025-06-10",
-    history: [
-      { date: "2025-06-10", note: "BP 150/95. Medication increased to 10mg Amlodipine.", type: "Consultation" },
-    ],
-    vitals: { bp: "150/95", pulse: "76 bpm", temp: "98.6°F", glucose: "95 mg/dL" },
-  },
-]
-
-type ApiPatient = {
-  id: string
-  name: string
-  age: number
-  gender: string
-  blood_group?: string | null
-  condition?: string | null
-  status: string
-  doctor?: string | null
-  last_visit?: string | null
-}
-
-const historyTypeColor: Record<string, string> = {
-  Consultation: "bg-blue-100 text-blue-700",
-  Checkup:      "bg-green-100 text-green-700",
-  Emergency:    "bg-red-100 text-red-700",
-  Discharge:    "bg-gray-100 text-gray-600",
-  Referral:     "bg-purple-100 text-purple-700",
-}
 
 const statusColor: Record<string, string> = {
   Active:     "bg-green-100 text-green-700",
@@ -64,31 +23,34 @@ export default function HealthCardPage() {
   const params = useParams()
   const id = params.id as string
 
-  const [patient, setPatient] = useState<ApiPatient | typeof dummyPatients[0] | null>(null)
+  const [patient, setPatient] = useState<Patient | null>(null)
+  const [records, setRecords] = useState<MedicalRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
-    async function loadPatient() {
-      const demoPatient = dummyPatients.find((p) => p.id === id)
-      if (demoPatient) {
-        setPatient(demoPatient)
-        setLoading(false)
-        return
-      }
+    async function loadData() {
+      setLoading(true)
+      setNotFound(false)
       try {
-        const apiPatient = await getPatient(id)
-        setPatient(apiPatient)
-      } catch {
+        // Load the patient and their history in parallel — faster than
+        // waiting for one, then the other
+        const [patientData, historyData] = await Promise.all([
+          getPatientById(id),
+          getMedicalRecords(id),
+        ])
+        setPatient(patientData)
+        setRecords(historyData)
+      } catch (err) {
+        console.error("Failed to load health card:", err)
         setNotFound(true)
       } finally {
         setLoading(false)
       }
     }
-    loadPatient()
+    loadData()
   }, [id])
 
-  // ── Loading ──
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -100,7 +62,6 @@ export default function HealthCardPage() {
     )
   }
 
-  // ── Not found ──
   if (notFound || !patient) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -112,13 +73,13 @@ export default function HealthCardPage() {
     )
   }
 
-  const hasFullData = "history" in patient
+  const hasVitals = !!(patient.bp || patient.pulse || patient.temp || patient.glucose)
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-md mx-auto space-y-4">
 
-        {/* ── Card header — looks like an actual health ID card ── */}
+        {/* ── Card header ── */}
         <div className="bg-blue-600 rounded-2xl p-5 text-white shadow-lg">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -138,7 +99,7 @@ export default function HealthCardPage() {
               <p className="text-lg font-bold">{patient.name}</p>
               <p className="text-xs text-blue-100">
                 {patient.age} yrs · {patient.gender}
-                {patient.blood_group && <> · {patient.blood_group}</>}
+                {patient.bloodGroup && <> · {patient.bloodGroup}</>}
               </p>
             </div>
           </div>
@@ -156,13 +117,13 @@ export default function HealthCardPage() {
         {/* ── Current Vitals ── */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
           <h2 className="text-sm font-semibold text-gray-900 mb-3">Current Vitals</h2>
-          {hasFullData ? (
+          {hasVitals ? (
             <div className="grid grid-cols-2 gap-3">
               {[
-                { icon: <Activity className="w-4 h-4" />,    label: "Blood Pressure", value: (patient as typeof dummyPatients[0]).vitals.bp,      color: "bg-red-50 text-red-600" },
-                { icon: <Heart className="w-4 h-4" />,       label: "Pulse",          value: (patient as typeof dummyPatients[0]).vitals.pulse,   color: "bg-pink-50 text-pink-600" },
-                { icon: <Thermometer className="w-4 h-4" />, label: "Temperature",    value: (patient as typeof dummyPatients[0]).vitals.temp,    color: "bg-amber-50 text-amber-600" },
-                { icon: <Droplets className="w-4 h-4" />,    label: "Blood Glucose",  value: (patient as typeof dummyPatients[0]).vitals.glucose, color: "bg-blue-50 text-blue-600" },
+                { icon: <Activity className="w-4 h-4" />,    label: "Blood Pressure", value: patient.bp ?? "—",      color: "bg-red-50 text-red-600" },
+                { icon: <Heart className="w-4 h-4" />,       label: "Pulse",          value: patient.pulse ? `${patient.pulse} bpm` : "—",   color: "bg-pink-50 text-pink-600" },
+                { icon: <Thermometer className="w-4 h-4" />, label: "Temperature",    value: patient.temp ? `${patient.temp}°F` : "—",    color: "bg-amber-50 text-amber-600" },
+                { icon: <Droplets className="w-4 h-4" />,    label: "Blood Glucose",  value: patient.glucose ? `${patient.glucose} mg/dL` : "—", color: "bg-blue-50 text-blue-600" },
               ].map((v) => (
                 <div key={v.label} className={`rounded-lg p-3 ${v.color.split(" ")[0]}`}>
                   <span className={v.color.split(" ")[1]}>{v.icon}</span>
@@ -176,7 +137,7 @@ export default function HealthCardPage() {
           )}
         </div>
 
-        {/* ── Primary Diagnosis ── */}
+        {/* ── Primary Diagnosis — reflects whatever was last saved via Update Record ── */}
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
           <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Primary Diagnosis</p>
           <p className="text-lg font-bold text-blue-900 mt-1">{patient.condition || "Not specified"}</p>
@@ -186,44 +147,69 @@ export default function HealthCardPage() {
           </div>
           <div className="flex items-center gap-1.5 mt-1 text-xs text-blue-500">
             <Calendar className="w-3 h-3" />
-            Last visit: {patient.last_visit || "No record"}
+            Last visit: {patient.lastVisit || "No record"}
           </div>
         </div>
 
-        {/* ── Medical History ── */}
+        {/* ── Medical History — now LIVE from medical_records ── */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-900">Medical History</h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              {hasFullData ? `${(patient as typeof dummyPatients[0]).history.length} records found` : "No records yet"}
+              {records.length} record{records.length !== 1 ? "s" : ""}
             </p>
           </div>
 
-          {hasFullData ? (
-            <div className="divide-y divide-gray-50">
-              {(patient as typeof dummyPatients[0]).history.map((h, index) => (
-                <div key={index} className="px-5 py-4 flex gap-3">
-                  <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${historyTypeColor[h.type] ?? "bg-gray-100 text-gray-600"}`}>
-                        {h.type}
-                      </span>
-                      <span className="text-xs text-gray-400">{h.date}</span>
-                    </div>
-                    <p className="text-sm text-gray-700 mt-1.5 leading-relaxed">{h.note}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
+          {records.length === 0 ? (
             <div className="px-5 py-8 text-center">
               <p className="text-sm text-gray-400">No medical history recorded yet.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {records.map((r) => (
+                <div key={r.id} className="px-5 py-4 space-y-1.5">
+                  {/* Date + doctor */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {new Date(r.visit_date).toLocaleDateString("en-IN", {
+                        day: "numeric", month: "short", year: "numeric",
+                      })}
+                    </span>
+                    {r.doctor_name && (
+                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        {r.doctor_name}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Diagnosis */}
+                  {r.diagnosis && (
+                    <div className="flex items-start gap-2">
+                      <ClipboardList className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-gray-800 font-medium">{r.diagnosis}</p>
+                    </div>
+                  )}
+
+                  {/* Prescription */}
+                  {r.prescription && (
+                    <div className="flex items-start gap-2">
+                      <Pill className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-gray-600">{r.prescription}</p>
+                    </div>
+                  )}
+
+                  {/* Treatment notes */}
+                  {r.treatment_notes && (
+                    <p className="text-xs text-gray-400 pl-5.5">{r.treatment_notes}</p>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Print button — useful for patients who want a physical copy */}
         <button
           onClick={() => window.print()}
           className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors print:hidden"

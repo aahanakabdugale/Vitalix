@@ -1,15 +1,23 @@
 // reports/page.tsx — Reports page
 // Shows downloadable reports, stats summaries and export options
+//
+// NOTE on live vs placeholder data:
+// - "Patients Covered" stat below is LIVE — real count from the `patients` table.
+// - "Total Reports", "This Month", "Avg. Generation Time", and the entire report
+//   list are still PLACEHOLDER data. There's no real report-generation system
+//   or `reports` table in Supabase yet — building that (PDF generation + a table
+//   to track generated files) is a separate feature for later.
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   FileText, Download, Filter, Calendar,
   TrendingUp, Users, Activity, CheckCircle,
   Eye, Clock, BarChart3
 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 
-// ── Dummy report data ─────────────────────────────────────────────
+// ── Dummy report list (placeholder — see note at top of file) ─────
 const reports = [
   {
     id: 1,
@@ -79,30 +87,57 @@ const reports = [
   },
 ]
 
-// Summary stats at top
-const summaryStats = [
-  { label: "Total Reports",      value: "24",   icon: FileText,   color: "bg-blue-600" },
-  { label: "This Month",         value: "6",    icon: Calendar,   color: "bg-green-600" },
-  { label: "Patients Covered",   value: "2,847",icon: Users,      color: "bg-purple-600" },
-  { label: "Avg. Generation Time",value: "2m",  icon: Clock,      color: "bg-amber-500" },
-]
-
 const reportTypes = ["All", "Patient Report", "Surveillance Report", "Analytics Report"]
 
 // ─────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const [filter,  setFilter]  = useState("All")
-  const [search,  setSearch]  = useState("")
+  const [filter, setFilter] = useState("All")
+  const [search, setSearch] = useState("")
+
+  // Live patient count — replaces the old hardcoded "2,847"
+  const [patientsCovered, setPatientsCovered] = useState<number | null>(null)
+  const [countLoading, setCountLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchPatientCount() {
+      // head: true + count: 'exact' gets just the row count, without downloading
+      // every patient row — much faster than fetching all rows and using .length
+      const { count, error } = await supabase
+        .from("patients")
+        .select("*", { count: "exact", head: true })
+
+      if (!error && count !== null) {
+        setPatientsCovered(count)
+      }
+      setCountLoading(false)
+    }
+
+    fetchPatientCount()
+  }, [])
+
+  // Summary stats at top — built here (instead of a static array) so the
+  // "Patients Covered" value can be swapped in once it loads
+  const summaryStats = [
+    { label: "Total Reports", value: "24", icon: FileText, color: "bg-blue-600" }, // placeholder
+    { label: "This Month", value: "6", icon: Calendar, color: "bg-green-600" },     // placeholder
+    {
+      label: "Patients Covered",
+      value: countLoading ? "…" : (patientsCovered ?? 0).toLocaleString(),
+      icon: Users,
+      color: "bg-purple-600",
+    }, // LIVE
+    { label: "Avg. Generation Time", value: "2m", icon: Clock, color: "bg-amber-500" }, // placeholder
+  ]
 
   const filtered = reports.filter((r) => {
-    const matchType   = filter === "All" || r.type === filter
+    const matchType = filter === "All" || r.type === filter
     const matchSearch = r.name.toLowerCase().includes(search.toLowerCase())
     return matchType && matchSearch
   })
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
 
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -112,7 +147,7 @@ export default function ReportsPage() {
             Generate and download healthcare reports
           </p>
         </div>
-        {/* Generate new report button */}
+        {/* Generate new report button — not wired up yet, just UI */}
         <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors w-fit">
           <FileText className="w-4 h-4" />
           Generate Report
@@ -135,14 +170,14 @@ export default function ReportsPage() {
         })}
       </div>
 
-      {/* ── Quick generate cards ── */}
+      {/* ── Quick generate cards (placeholder — not wired up) ── */}
       <div>
         <h2 className="text-sm font-semibold text-gray-900 mb-3">Quick Generate</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { title: "Patient Summary",      desc: "All registered patients with status", icon: Users,      color: "border-t-blue-500" },
-            { title: "Disease Surveillance", desc: "Outbreak trends and regional data",   icon: Activity,   color: "border-t-red-500" },
-            { title: "Recovery Analytics",   desc: "Recovery rates by disease and region",icon: TrendingUp, color: "border-t-green-500" },
+            { title: "Patient Summary", desc: "All registered patients with status", icon: Users, color: "border-t-blue-500" },
+            { title: "Disease Surveillance", desc: "Outbreak trends and regional data", icon: Activity, color: "border-t-red-500" },
+            { title: "Recovery Analytics", desc: "Recovery rates by disease and region", icon: TrendingUp, color: "border-t-green-500" },
           ].map((q) => {
             const Icon = q.icon
             return (
@@ -163,7 +198,7 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* ── Report list ── */}
+      {/* ── Report list (placeholder data — see note at top of file) ── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
 
         {/* List header with filters */}

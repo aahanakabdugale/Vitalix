@@ -1,22 +1,13 @@
 // patients/page.tsx — Patient list page with search and filter
+// FIXED: now fetches real data from Supabase on page load via lib/patients.ts
+// No more dummy array as the starting state — that was the root cause of the "two lists" bug.
 "use client"
 
-import { useState } from "react"
-import { Search, Plus, Filter, ChevronRight } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Search, Plus, Filter, ChevronRight, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { AddPatientModal } from "@/components/add-patient-modal"
-import { getPatients } from "@/lib/api"
-// ── Dummy patient data ────────────────────────────────────────────
-const dummyPatients = [
-  { id: "a1b2c3d4-0001-4000-8000-000000000001", name: "Arjun Mehta",      age: 45, gender: "Male",   condition: "Diabetes Type 2", status: "Active",     doctor: "Dr. Sharma",   lastVisit: "2025-06-10" },
-  { id: "a1b2c3d4-0002-4000-8000-000000000002", name: "Priya Sharma",     age: 32, gender: "Female", condition: "Hypertension",    status: "Active",     doctor: "Dr. Kulkarni", lastVisit: "2025-06-10" },
-  { id: "a1b2c3d4-0003-4000-8000-000000000003", name: "Ravi Kulkarni",    age: 58, gender: "Male",   condition: "Cardiac Arrest",  status: "Critical",   doctor: "Dr. Patil",    lastVisit: "2025-06-11" },
-  { id: "a1b2c3d4-0004-4000-8000-000000000004", name: "Sneha Patil",      age: 27, gender: "Female", condition: "Dengue Fever",    status: "Active",     doctor: "Dr. Sharma",   lastVisit: "2025-06-09" },
-  { id: "a1b2c3d4-0005-4000-8000-000000000005", name: "Mohammed Shaikh",  age: 61, gender: "Male",   condition: "COPD",            status: "Discharged", doctor: "Dr. Iyer",     lastVisit: "2025-06-07" },
-  { id: "a1b2c3d4-0006-4000-8000-000000000006", name: "Anjali Desai",     age: 38, gender: "Female", condition: "Asthma",          status: "Active",     doctor: "Dr. Kulkarni", lastVisit: "2025-06-08" },
-  { id: "a1b2c3d4-0007-4000-8000-000000000007", name: "Suresh Iyer",      age: 52, gender: "Male",   condition: "Kidney Disease",  status: "Critical",   doctor: "Dr. Patil",    lastVisit: "2025-06-11" },
-  { id: "a1b2c3d4-0008-4000-8000-000000000008", name: "Kavita Nair",      age: 44, gender: "Female", condition: "Thyroid",         status: "Active",     doctor: "Dr. Sharma",   lastVisit: "2025-06-06" },
-]
+import { getPatients, type Patient } from "@/lib/patients"   // <-- our single Supabase source of truth
 
 // Status badge color map
 const statusColor: Record<string, string> = {
@@ -28,21 +19,42 @@ const statusColor: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────
 
 export default function PatientsPage() {
-  const [search, setSearch]       = useState("")
-const [filterStatus, setFilterStatus] = useState("All")
-const [modalOpen, setModalOpen] = useState(false)
-const [patients, setPatients]   = useState(dummyPatients)
+  const [search, setSearch] = useState("")
+  const [filterStatus, setFilterStatus] = useState("All")
+  const [modalOpen, setModalOpen] = useState(false)
 
-// Reload patient list when new patient is added
-const handlePatientAdded = async () => {
-  try {
-    const updatedPatients = await getPatients()
-    setPatients(updatedPatients)
-  } catch (err) {
-    // If API fails, just keep the existing list
-    console.error("Failed to refresh patients:", err)
+  // Real patient data state — starts EMPTY, gets filled from Supabase
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState("")
+
+  // ── Fetch patients from Supabase ──────────────────────────────
+  // Pulled into its own function so we can call it both on page load
+  // AND after a new patient is added (same single source of truth, every time).
+  async function loadPatients() {
+    setLoading(true)
+    setLoadError("")
+    try {
+      const data = await getPatients()
+      setPatients(data)
+    } catch (err) {
+      console.error("Failed to load patients:", err)
+      setLoadError("Could not load patients. Check your connection and try again.")
+    } finally {
+      setLoading(false)
+    }
   }
-}
+
+  // Run once when the page first loads
+  useEffect(() => {
+    loadPatients()
+  }, [])
+
+  // Called by the modal after a successful add — just re-fetch the real list
+  const handlePatientAdded = () => {
+    loadPatients()
+  }
+
   // Filter patients based on search text and status dropdown
   const filtered = patients.filter((p) => {
     const matchSearch =
@@ -61,8 +73,8 @@ const handlePatientAdded = async () => {
           <h1 className="text-xl font-bold text-gray-900">Patients</h1>
           <p className="text-sm text-gray-500 mt-0.5">{patients.length} total patients registered</p>
         </div>
-        <button onClick={() => setModalOpen(true)}className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors w-fit">
-        <Plus className="w-4 h-4" />
+        <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors w-fit">
+          <Plus className="w-4 h-4" />
           Add Patient
         </button>
       </div>
@@ -111,115 +123,140 @@ const handlePatientAdded = async () => {
         ))}
       </div>
 
-      {/* ── Patient cards (mobile) / table (desktop) ── */}
+      {/* ── Loading state ── */}
+      {loading && (
+        <div className="flex items-center justify-center gap-2 py-16 text-gray-400 text-sm">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Loading patients...
+        </div>
+      )}
 
-      {/* Desktop table */}
-      <div className="hidden sm:block bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Condition</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Doctor</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Visit</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-5 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
+      {/* ── Error state ── */}
+      {!loading && loadError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-6 text-center">
+          <p className="text-sm text-red-700">{loadError}</p>
+          <button
+            onClick={loadPatients}
+            className="mt-2 text-xs font-medium text-blue-600 hover:underline"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {/* ── Patient cards (mobile) / table (desktop) — only show once loaded ── */}
+      {!loading && !loadError && (
+        <>
+          {/* Desktop table */}
+          <div className="hidden sm:block bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Condition</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Doctor</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Visit</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-12 text-gray-400 text-sm">
+                      No patients found matching your search.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                      {/* Name + avatar */}
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                            <span className="text-blue-700 text-xs font-semibold">
+                              {p.name.split(" ").map(n => n[0]).join("")}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{p.name}</p>
+                            <p className="text-xs text-gray-400">{p.age}y · {p.gender}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-gray-600">{p.condition}</td>
+                      <td className="px-5 py-3.5 text-gray-600">{p.doctor || "—"}</td>
+                      <td className="px-5 py-3.5 text-gray-400 text-xs">{p.lastVisit || "—"}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColor[p.status]}`}>
+                          {p.status}
+                        </span>
+                      </td>
+                      {/* View detail link */}
+                      <td className="px-5 py-3.5">
+                        <Link
+                          href={`/patients/${p.id}`}
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          View <ChevronRight className="w-3 h-3" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="sm:hidden space-y-3">
             {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center py-12 text-gray-400 text-sm">
-                  No patients found matching your search.
-                </td>
-              </tr>
+              <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-xl border border-gray-100">
+                No patients found.
+              </div>
             ) : (
               filtered.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                  {/* Name + avatar */}
-                  <td className="px-5 py-3.5">
+                <div key={p.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-blue-700 text-xs font-semibold">
+                      <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="text-blue-700 text-sm font-semibold">
                           {p.name.split(" ").map(n => n[0]).join("")}
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{p.name}</p>
+                        <p className="font-medium text-gray-900 text-sm">{p.name}</p>
                         <p className="text-xs text-gray-400">{p.age}y · {p.gender}</p>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-5 py-3.5 text-gray-600">{p.condition}</td>
-                  <td className="px-5 py-3.5 text-gray-600">{p.doctor}</td>
-                  <td className="px-5 py-3.5 text-gray-400 text-xs">{p.lastVisit}</td>
-                  <td className="px-5 py-3.5">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColor[p.status]}`}>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusColor[p.status]}`}>
                       {p.status}
                     </span>
-                  </td>
-                  {/* View detail link */}
-                  <td className="px-5 py-3.5">
-                    <Link
-                      href={`/patients/${p.id}`}
-                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                    >
-                      View <ChevronRight className="w-3 h-3" />
-                    </Link>
-                  </td>
-                </tr>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-500">
+                    <div><span className="text-gray-400">Condition:</span> {p.condition}</div>
+                    <div><span className="text-gray-400">Doctor:</span> {p.doctor || "—"}</div>
+                    <div><span className="text-gray-400">Last Visit:</span> {p.lastVisit || "—"}</div>
+                  </div>
+                  <Link
+                    href={`/patients/${p.id}`}
+                    className="mt-3 flex items-center gap-1 text-xs text-blue-600 font-medium"
+                  >
+                    View details <ChevronRight className="w-3 h-3" />
+                  </Link>
+                </div>
               ))
             )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile cards */}
-      <div className="sm:hidden space-y-3">
-        {filtered.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-xl border border-gray-100">
-            No patients found.
           </div>
-        ) : (
-          filtered.map((p) => (
-            <div key={p.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="text-blue-700 text-sm font-semibold">
-                      {p.name.split(" ").map(n => n[0]).join("")}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900 text-sm">{p.name}</p>
-                    <p className="text-xs text-gray-400">{p.age}y · {p.gender}</p>
-                  </div>
-                </div>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusColor[p.status]}`}>
-                  {p.status}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-500">
-                <div><span className="text-gray-400">Condition:</span> {p.condition}</div>
-                <div><span className="text-gray-400">Doctor:</span> {p.doctor}</div>
-                <div><span className="text-gray-400">Last Visit:</span> {p.lastVisit}</div>
-              </div>
-              <Link
-                href={`/patients/${p.id}`}
-                className="mt-3 flex items-center gap-1 text-xs text-blue-600 font-medium"
-              >
-                View details <ChevronRight className="w-3 h-3" />
-              </Link>
-            </div>
-          ))
-        )}
-      </div>
-         {/* Add Patient Modal */}
-<AddPatientModal 
-  isOpen={modalOpen} 
-  onClose={() => setModalOpen(false)}
-  onPatientAdded={handlePatientAdded}
-/> 
+        </>
+      )}
+
+      {/* Add Patient Modal */}
+      <AddPatientModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onPatientAdded={handlePatientAdded}
+      />
 
     </div>
   )
