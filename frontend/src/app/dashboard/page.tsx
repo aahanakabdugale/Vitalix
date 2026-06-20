@@ -6,14 +6,14 @@ import { getPatients } from "@/lib/api"
 import { supabase } from "@/lib/supabase" // Direct Supabase client for disease_reports
 import { Users, Activity, AlertTriangle, CheckCircle, Plus, AlertCircle } from "lucide-react"
 import Link from "next/link"
-
+import { getCurrentUser, formatGreetingName, type CurrentUser } from "@/lib/current-user"
 
 // Base stats template — values get filled in once patients load
 const stats = [
-  { title: "Total Patients", value: "—", change: "loading", trend: "neutral" as const, icon: <Users className="w-5 h-5" />, color: "blue" as const },
-  { title: "Active Cases", value: "—", change: "loading", trend: "neutral" as const, icon: <Activity className="w-5 h-5" />, color: "green" as const },
-  { title: "Critical Alerts", value: "—", change: "loading", trend: "neutral" as const, icon: <AlertTriangle className="w-5 h-5" />, color: "red" as const },
-  { title: "Recovered", value: "—", change: "loading", trend: "neutral" as const, icon: <CheckCircle className="w-5 h-5" />, color: "amber" as const },
+  { title: "Total Patients", value: "—", change: "Live", trend: "neutral" as const, icon: <Users className="w-5 h-5" />, color: "blue" as const },
+  { title: "Active Cases", value: "—", change: "Live", trend: "neutral" as const, icon: <Activity className="w-5 h-5" />, color: "green" as const },
+  { title: "Critical Alerts", value: "—", change: "Live", trend: "neutral" as const, icon: <AlertTriangle className="w-5 h-5" />, color: "red" as const },
+  { title: "Recovered", value: "—", change: "Live", trend: "neutral" as const, icon: <CheckCircle className="w-5 h-5" />, color: "amber" as const },
 ]
 
 // Shape of a patient row coming from FastAPI (which talks to Supabase)
@@ -30,6 +30,8 @@ export default function DashboardPage() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+const [userLoading, setUserLoading] = useState(true)
 
   // --- Disease alerts state (newly wired to live Supabase) ---
   const [diseaseAlerts, setDiseaseAlerts] = useState<DiseaseAlert[]>([])
@@ -37,7 +39,11 @@ export default function DashboardPage() {
   const [diseaseError, setDiseaseError] = useState("")
 
   const today = new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
-
+    useEffect(() => {
+    getCurrentUser()
+    .then(setCurrentUser)
+    .finally(() => setUserLoading(false))
+    }, [])
   // Fetch patients from FastAPI (unchanged from before)
   useEffect(() => {
     getPatients()
@@ -59,7 +65,7 @@ export default function DashboardPage() {
         setDiseaseLoading(false)
         return
       }
-
+        
       // Rank severities so we can pick the worst one per disease
       const severityRank: Record<string, number> = { Low: 1, Medium: 2, High: 3 }
 
@@ -122,18 +128,10 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Good morning, Dr. Admin 👋</h1>
+            <h1 className="text-xl font-bold text-gray-900">Good morning, {userLoading ? "…" : formatGreetingName(currentUser)} </h1>
             <p className="text-sm text-gray-500 mt-0.5">{today}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/patients"
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Patient</span>
-            </Link>
-          </div>
+          
         </div>
 
         {/* Backend connection error (patients) */}

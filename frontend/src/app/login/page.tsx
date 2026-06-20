@@ -132,13 +132,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Demo credentials hint */}
-        <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl p-3 space-y-0.5">
-          <p className="text-xs font-semibold text-blue-700 mb-1">Demo accounts (create these via signup):</p>
-          <p className="text-xs text-blue-600">doctor@vitalix.com — Doctor</p>
-          <p className="text-xs text-blue-600">admin@vitalix.com — Hospital Admin</p>
-          <p className="text-xs text-blue-600">authority@vitalix.com — Health Authority</p>
-        </div>
+        
 
       </div>
     </div>

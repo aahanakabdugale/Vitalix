@@ -1,7 +1,8 @@
 // api.ts — All FastAPI backend calls live here
 // Change BASE_URL if you deploy backend elsewhere
 
-const BASE_URL = "http://127.0.0.1:8000"
+// Uses the deployed backend URL in production, falls back to localhost for local dev
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
 // ── PATIENTS ──────────────────────────────────────────
 
