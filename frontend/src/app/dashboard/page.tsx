@@ -6,7 +6,7 @@ import { getPatients } from "@/lib/api"
 import { supabase } from "@/lib/supabase" // Direct Supabase client for disease_reports
 import { Users, Activity, AlertTriangle, CheckCircle, Plus, AlertCircle } from "lucide-react"
 import Link from "next/link"
-import { Sidebar } from "@/components/sidebar"
+
 
 // Base stats template — values get filled in once patients load
 const stats = [
@@ -115,8 +115,8 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
+     <div className="p-4 sm:p-6 space-y-6">
+      
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         {/* Header */}
