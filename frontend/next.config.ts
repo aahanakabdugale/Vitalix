@@ -30,4 +30,9 @@ const nextConfig: NextConfig = {
     
   },
 }
+
+const nextConfig = {
+  trailingSlash: true,
+  // ... other configs
+}
 export default nextConfig;
