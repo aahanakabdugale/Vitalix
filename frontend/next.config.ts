@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   devIndicators: {
-    buildActivity: false, // This often hides the indicator
+    
   },
 }
 export default nextConfig;
