@@ -17,10 +17,13 @@ app = FastAPI(
 # Without this, the browser blocks every request
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js frontend
+    allow_origins=[
+        "http://localhost:3000",                    # local dev
+        "https://project-vitalix.vercel.app",          # deployed frontend
+    ],
     allow_credentials=True,
-    allow_methods=["*"],   # GET, POST, PUT, DELETE all allowed
-    allow_headers=["*"],   # All headers allowed
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # 3. Register routers
